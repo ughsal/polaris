@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useAuth } from "@clerk/nextjs";
 import { Id, Doc } from "../../../../convex/_generated/dataModel";
+import { resolveUniqueProjectName } from "@/lib/project-name";
 
 /**
  * Returns ALL projects for the current user.
@@ -22,8 +23,14 @@ export const useProjectsPartial = (limit: number) => {
 /**
  * Returns a single project for the current user.
  */
-export const useProject = (projectId: Id<"projects">) => {
-  return useQuery(api.projects.getById, { id: projectId });
+export const useProject = (
+  projectId: Id<"projects">,
+  options?: { skip?: boolean },
+) => {
+  return useQuery(
+    api.projects.getById,
+    options?.skip ? "skip" : { id: projectId },
+  );
 };
 
 /**
@@ -39,13 +46,17 @@ export const useCreateProject = () => {
       const existingProjects = localStore.getQuery(api.projects.get, {});
 
       if (existingProjects !== undefined) {
+        const uniqueName = resolveUniqueProjectName(
+          args.name,
+          existingProjects.map(project => project.name),
+        );
         const optimisticTimestamp = existingProjects[0]?.updatedAt ?? 0;
         const optimisticCreationTime = existingProjects[0]?._creationTime ?? 0;
 
         const newProject: Doc<"projects"> = {
           _id: crypto.randomUUID() as Id<"projects">,
           _creationTime: optimisticCreationTime,
-          name: args.name,
+          name: uniqueName || args.name,
           ownerId: userId ?? "anonymous",
           updatedAt: optimisticTimestamp,
         };
@@ -78,13 +89,24 @@ export const useRenameProject = () => {
         return;
       }
 
+      const uniqueName = resolveUniqueProjectName(
+        trimmedName,
+        allProjects
+          ? allProjects
+              .filter(project => project._id !== args.id)
+              .map(project => project.name)
+          : existingProject
+            ? [existingProject.name]
+            : [],
+      );
+
       if (existingProject !== undefined) {
         localStore.setQuery(
           api.projects.getById,
           { id: args.id },
           {
             ...existingProject,
-            name: trimmedName,
+            name: uniqueName || trimmedName,
           },
         );
       }
@@ -97,7 +119,7 @@ export const useRenameProject = () => {
             project._id === args.id
               ? {
                   ...project,
-                  name: trimmedName,
+                  name: uniqueName || trimmedName,
                 }
               : project,
           ),
@@ -112,12 +134,44 @@ export const useRenameProject = () => {
             project._id === args.id
               ? {
                   ...project,
-                  name: trimmedName,
+                  name: uniqueName || trimmedName,
                 }
               : project,
           ),
         );
       }
+    },
+  );
+};
+
+/**
+ * Deletes a project and keeps the cached project lists in sync.
+ */
+export const useDeleteProject = () => {
+  return useMutation(api.projects.deleteProject).withOptimisticUpdate(
+    (localStore, args) => {
+      const existingProjects = localStore.getQuery(api.projects.get, {});
+      const partialProjects = localStore.getQuery(api.projects.getPartial, {
+        limit: 6,
+      });
+
+      if (existingProjects !== undefined) {
+        localStore.setQuery(
+          api.projects.get,
+          {},
+          existingProjects.filter(project => project._id !== args.id),
+        );
+      }
+
+      if (partialProjects !== undefined) {
+        localStore.setQuery(
+          api.projects.getPartial,
+          { limit: 6 },
+          partialProjects.filter(project => project._id !== args.id),
+        );
+      }
+
+      localStore.setQuery(api.projects.getById, { id: args.id }, undefined);
     },
   );
 };

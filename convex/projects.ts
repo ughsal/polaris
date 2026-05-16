@@ -1,7 +1,54 @@
 // convex/projects.ts
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { Doc } from "./_generated/dataModel";
 import { verifyAuth } from "./auth";
+
+function normalizeProjectName(name: string) {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+function makeProjectSuffix() {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).slice(2, 8);
+  return `${timestamp}-${random}`;
+}
+
+function resolveUniqueProjectName(
+  desiredName: string,
+  existingProjects: Doc<"projects">[],
+  excludeProjectId?: string,
+) {
+  const baseName = normalizeProjectName(desiredName);
+
+  if (!baseName) {
+    throw new Error("Project name cannot be empty.");
+  }
+
+  const takenNames = new Set(
+    existingProjects
+      .filter(project => project._id !== excludeProjectId)
+      .map(project => project.name),
+  );
+
+  if (!takenNames.has(baseName)) {
+    return baseName;
+  }
+
+  let candidate = `${baseName}-${makeProjectSuffix()}`;
+  while (takenNames.has(candidate)) {
+    candidate = `${baseName}-${makeProjectSuffix()}`;
+  }
+
+  return candidate;
+}
+
+async function getOwnedProjects(ctx: Parameters<typeof verifyAuth>[0], ownerId: string) {
+  return await ctx.db
+    .query("projects")
+    .withIndex("by_owner", q => q.eq("ownerId", ownerId))
+    .collect();
+}
 
 /**
  * Creates a new project for the authenticated user.
@@ -13,9 +60,11 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await verifyAuth(ctx);
+    const ownedProjects = await getOwnedProjects(ctx, identity.subject);
+    const projectName = resolveUniqueProjectName(args.name, ownedProjects);
 
     const projectId = await ctx.db.insert("projects", {
-      name: args.name,
+      name: projectName,
       ownerId: identity.subject,
       updatedAt: Date.now(),
     });
@@ -88,7 +137,7 @@ export const rename = mutation({
   handler: async (ctx, args) => {
     const identity = await verifyAuth(ctx);
     const project = await ctx.db.get(args.id);
-    const trimmedName = args.name.trim();
+    const ownedProjects = await getOwnedProjects(ctx, identity.subject);
 
     if (!project) {
       throw new Error("Project not found.");
@@ -98,13 +147,35 @@ export const rename = mutation({
       throw new Error("Unauthorized: you do not have access to this project.");
     }
 
-    if (!trimmedName) {
-      throw new Error("Project name cannot be empty.");
-    }
+    const projectName = resolveUniqueProjectName(
+      args.name,
+      ownedProjects,
+      args.id,
+    );
 
     await ctx.db.patch(args.id, {
-      name: trimmedName,
+      name: projectName,
       updatedAt: Date.now(),
     });
+  },
+});
+
+export const deleteProject = mutation({
+  args: {
+    id: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+    const project = await ctx.db.get(args.id);
+
+    if (!project) {
+      throw new Error("Project not found.");
+    }
+
+    if (project.ownerId !== identity.subject) {
+      throw new Error("Unauthorized: you do not have access to this project.");
+    }
+
+    await ctx.db.delete(args.id);
   },
 });
