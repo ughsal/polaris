@@ -26,7 +26,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     // NOTE: fetchQuery is the server-side Convex fetch helper for App Router.
     // This will be wired up properly in Part 2 with a `getById` query.
     // For now we just show the ID as the name if we can't resolve it.
-    projectName = `Project · ${params.id.slice(0, 8)}`;
+    projectName = `Project · ${(await params).id.slice(0, 8)}`;
   } catch {
     // Silently fall back to generic name — this is a Part 1 stub.
   }
