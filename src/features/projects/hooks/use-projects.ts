@@ -20,6 +20,13 @@ export const useProjectsPartial = (limit: number) => {
 };
 
 /**
+ * Returns a single project for the current user.
+ */
+export const useProject = (projectId: Id<"projects">) => {
+  return useQuery(api.projects.getById, { id: projectId });
+};
+
+/**
  * Returns a mutation that creates a new project.
  * Includes an optimistic update so the project appears in the list
  * immediately before Convex confirms — this is what makes creation feel instant.
@@ -32,21 +39,84 @@ export const useCreateProject = () => {
       const existingProjects = localStore.getQuery(api.projects.get, {});
 
       if (existingProjects !== undefined) {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        const now = Date.now();
+        const optimisticTimestamp = existingProjects[0]?.updatedAt ?? 0;
+        const optimisticCreationTime = existingProjects[0]?._creationTime ?? 0;
 
         const newProject: Doc<"projects"> = {
           _id: crypto.randomUUID() as Id<"projects">,
-          _creationTime: now,
+          _creationTime: optimisticCreationTime,
           name: args.name,
           ownerId: userId ?? "anonymous",
-          updatedAt: now,
+          updatedAt: optimisticTimestamp,
         };
 
         localStore.setQuery(api.projects.get, {}, [
           newProject,
           ...existingProjects,
         ]);
+      }
+    },
+  );
+};
+
+/**
+ * Renames a project and keeps the project header responsive via optimistic updates.
+ */
+export const useRenameProject = () => {
+  return useMutation(api.projects.rename).withOptimisticUpdate(
+    (localStore, args) => {
+      const trimmedName = args.name.trim();
+      const existingProject = localStore.getQuery(api.projects.getById, {
+        id: args.id,
+      });
+      const allProjects = localStore.getQuery(api.projects.get, {});
+      const partialProjects = localStore.getQuery(api.projects.getPartial, {
+        limit: 6,
+      });
+
+      if (!trimmedName) {
+        return;
+      }
+
+      if (existingProject !== undefined) {
+        localStore.setQuery(
+          api.projects.getById,
+          { id: args.id },
+          {
+            ...existingProject,
+            name: trimmedName,
+          },
+        );
+      }
+
+      if (allProjects !== undefined) {
+        localStore.setQuery(
+          api.projects.get,
+          {},
+          allProjects.map(project =>
+            project._id === args.id
+              ? {
+                  ...project,
+                  name: trimmedName,
+                }
+              : project,
+          ),
+        );
+      }
+
+      if (partialProjects !== undefined) {
+        localStore.setQuery(
+          api.projects.getPartial,
+          { limit: 6 },
+          partialProjects.map(project =>
+            project._id === args.id
+              ? {
+                  ...project,
+                  name: trimmedName,
+                }
+              : project,
+          ),
+        );
       }
     },
   );
