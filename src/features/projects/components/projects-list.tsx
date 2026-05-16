@@ -1,14 +1,37 @@
 // src/features/projects/components/projects-list.tsx
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Doc } from "../../../../convex/_generated/dataModel";
-import { useProjectsPartial } from "../hooks/use-projects";
+import { useDeleteProject, useProjectsPartial } from "../hooks/use-projects";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDistanceToNow } from "date-fns";
 import { Kbd } from "@/components/ui/kbd";
-import { Globe, AlertCircle, Loader2, ArrowRight } from "lucide-react";
+import {
+  Globe,
+  AlertCircle,
+  Loader2,
+  ArrowRight,
+  Trash2,
+} from "lucide-react";
 import { FaGithub } from "react-icons/fa";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,45 +69,84 @@ function getProjectIcon(project: Doc<"projects">) {
 
 // ─── ContinueCard ─────────────────────────────────────────────────────────────
 
-function ContinueCard({ data }: { data: Doc<"projects"> }) {
+function ContinueCard({
+  data,
+  onDeleteRequest,
+}: {
+  data: Doc<"projects">;
+  onDeleteRequest: (project: Doc<"projects">) => void;
+}) {
   return (
     <div className="flex flex-col gap-2">
       <span className="text-xs text-muted-foreground">Last updated</span>
-      <button className="h-auto items-start justify-start p-4 bg-background border rounded-none flex flex-col gap-2 hover:bg-accent/50 transition-colors text-left w-full">
-        <Link href={`/projects/${data._id}`} className="group w-full">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
-              {getProjectIcon(data)}
-              <span className="font-medium truncate">{data.name}</span>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <Link
+            href={`/projects/${data._id}`}
+            className="group h-auto items-start justify-start p-4 bg-background border rounded-none flex flex-col gap-2 hover:bg-accent/50 transition-colors text-left w-full"
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                {getProjectIcon(data)}
+                <span className="font-medium truncate">{data.name}</span>
+              </div>
+              <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
             </div>
-            <ArrowRight className="size-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {formatTimestamp(data.updatedAt)}
-          </span>
-        </Link>
-      </button>
+            <span className="text-xs text-muted-foreground">
+              {formatTimestamp(data.updatedAt)}
+            </span>
+          </Link>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem
+            variant="destructive"
+            onSelect={() => onDeleteRequest(data)}
+          >
+            <Trash2 />
+            Delete project
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </div>
   );
 }
 
 // ─── ProjectItem ──────────────────────────────────────────────────────────────
 
-function ProjectItem({ data }: { data: Doc<"projects"> }) {
+function ProjectItem({
+  data,
+  onDeleteRequest,
+}: {
+  data: Doc<"projects">;
+  onDeleteRequest: (project: Doc<"projects">) => void;
+}) {
   return (
     <li>
-      <Link
-        href={`/projects/${data._id}`}
-        className="text-sm text-foreground/60 font-medium hover:text-foreground py-1 flex items-center justify-between w-full group transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          {getProjectIcon(data)}
-          <span className="truncate">{data.name}</span>
-        </div>
-        <span className="text-xs text-muted-foreground group-hover:text-foreground/60 transition-colors">
-          {formatTimestamp(data.updatedAt)}
-        </span>
-      </Link>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <Link
+            href={`/projects/${data._id}`}
+            className="text-sm text-foreground/60 font-medium hover:text-foreground py-1 flex items-center justify-between w-full group transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              {getProjectIcon(data)}
+              <span className="truncate">{data.name}</span>
+            </div>
+            <span className="text-xs text-muted-foreground group-hover:text-foreground/60 transition-colors">
+              {formatTimestamp(data.updatedAt)}
+            </span>
+          </Link>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem
+            variant="destructive"
+            onSelect={() => onDeleteRequest(data)}
+          >
+            <Trash2 />
+            Delete project
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </li>
   );
 }
@@ -93,6 +155,10 @@ function ProjectItem({ data }: { data: Doc<"projects"> }) {
 
 export function ProjectsList({ onViewAll }: ProjectsListProps) {
   const projects = useProjectsPartial(6);
+  const deleteProject = useDeleteProject();
+  const [deleteTarget, setDeleteTarget] = useState<Doc<"projects"> | null>(
+    null,
+  );
 
   if (projects === undefined) {
     return <Spinner className="size-4 text-ring" />;
@@ -103,7 +169,9 @@ export function ProjectsList({ onViewAll }: ProjectsListProps) {
   return (
     <div className="flex flex-col gap-4 w-full">
       {/* Continue Card — most recently updated project */}
-      {mostRecent && <ContinueCard data={mostRecent} />}
+      {mostRecent && (
+        <ContinueCard data={mostRecent} onDeleteRequest={setDeleteTarget} />
+      )}
 
       {/* Rest of the projects */}
       {rest.length > 0 && (
@@ -123,11 +191,53 @@ export function ProjectsList({ onViewAll }: ProjectsListProps) {
 
           <ul className="flex flex-col">
             {rest.map(project => (
-              <ProjectItem key={project._id} data={project} />
+              <ProjectItem
+                key={project._id}
+                data={project}
+                onDeleteRequest={setDeleteTarget}
+              />
             ))}
           </ul>
         </div>
       )}
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={open => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {deleteTarget?.name ?? "this project"}
+              . This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={event => {
+                event.preventDefault();
+                if (!deleteTarget) {
+                  return;
+                }
+
+                void deleteProject({ id: deleteTarget._id });
+                setDeleteTarget(null);
+              }}
+            >
+              Delete project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

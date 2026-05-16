@@ -1,13 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, CloudCheck, Loader2 } from "lucide-react";
+import { ArrowLeft, CloudCheck, Loader2, Trash2 } from "lucide-react";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -23,19 +34,26 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { useProject, useRenameProject } from "../hooks/use-projects";
+import { useDeleteProject, useProject, useRenameProject } from "../hooks/use-projects";
 
 interface NavbarProps {
   projectId: Id<"projects">;
 }
 
 export function Navbar({ projectId }: NavbarProps) {
-  const project = useProject(projectId);
-  const renameProject = useRenameProject();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const isSubmittingRef = useRef(false);
+  const router = useRouter();
+  const [hasDeletedProject, setHasDeletedProject] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState("");
+  const project = useProject(projectId, {
+    skip: isDeleting || hasDeletedProject,
+  });
+  const renameProject = useRenameProject();
+  const deleteProject = useDeleteProject();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (project && !isRenaming) {
@@ -90,6 +108,42 @@ export function Navbar({ projectId }: NavbarProps) {
       isSubmittingRef.current = false;
     }
   };
+
+  const handleDeleteProject = async () => {
+    if (isDeleting) {
+      return;
+    }
+
+    setHasDeletedProject(true);
+    setIsDeleting(true);
+    setIsDeleteOpen(false);
+
+    try {
+      await deleteProject({ id: projectId });
+      startTransition(() => {
+        router.replace("/");
+      });
+    } finally {
+      // Keep the query skipped until the route changes away from the deleted project.
+    }
+  };
+
+  if (hasDeletedProject) {
+    return (
+      <header className="flex h-14 items-center justify-between gap-4 px-4">
+        <div className="flex min-w-0 items-center gap-3 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          <span>Deleting project...</span>
+        </div>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/">
+            <ArrowLeft className="size-4" />
+            Back to dashboard
+          </Link>
+        </Button>
+      </header>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -175,10 +229,50 @@ export function Navbar({ projectId }: NavbarProps) {
           </Breadcrumb>
         </div>
 
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setIsDeleteOpen(true)}
+                disabled={!project || isDeleting}
+                aria-label="Delete project"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Delete project</TooltipContent>
+          </Tooltip>
           <UserButton />
         </div>
       </header>
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {project?.name ?? "this project"}.
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={event => {
+                event.preventDefault();
+                void handleDeleteProject();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete project"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 }
