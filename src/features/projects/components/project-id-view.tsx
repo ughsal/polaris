@@ -1,14 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { Allotment } from "allotment";
 import { FaGithub } from "react-icons/fa";
 import { Code2, Eye } from "lucide-react";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { FileExplorer } from "./file-explorer";
 
 type ProjectViewMode = "editor" | "preview";
+
+const FILE_EXPLORER_MIN_WIDTH = 240;
+const FILE_EXPLORER_MAX_WIDTH = 420;
+const FILE_EXPLORER_DEFAULT_WIDTH = 300;
+const EDITOR_DEFAULT_SIZE = 860;
 
 interface ProjectIdViewProps {
   projectId: Id<"projects">;
@@ -55,16 +62,31 @@ export function ProjectIdView({ projectId }: ProjectIdViewProps) {
             activeView !== "editor" && "hidden",
           )}
         >
-          <div className="flex h-full items-center justify-center px-6 text-center">
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">
-                Editor placeholder
-              </p>
-              <p className="text-sm text-muted-foreground">
-                File explorer and editor state are planned for later sprints.
-              </p>
-            </div>
-          </div>
+          <Allotment
+            defaultSizes={[FILE_EXPLORER_DEFAULT_WIDTH, EDITOR_DEFAULT_SIZE]}
+            separator
+          >
+            <Allotment.Pane
+              snap
+              minSize={FILE_EXPLORER_MIN_WIDTH}
+              maxSize={FILE_EXPLORER_MAX_WIDTH}
+              preferredSize={FILE_EXPLORER_DEFAULT_WIDTH}
+            >
+              <FileExplorer projectId={projectId} />
+            </Allotment.Pane>
+            <Allotment.Pane preferredSize={EDITOR_DEFAULT_SIZE}>
+              <div className="flex h-full items-center justify-center px-6 text-center">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    Editor placeholder
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Real editor state and open-file behavior arrive in Sprint 11.
+                  </p>
+                </div>
+              </div>
+            </Allotment.Pane>
+          </Allotment>
         </section>
 
         <section
