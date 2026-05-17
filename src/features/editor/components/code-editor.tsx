@@ -19,6 +19,7 @@ export function CodeEditor({
 }: CodeEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const onChangeRef = useRef(onChange);
+  const initialValueRef = useRef(initialValue ?? "");
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -33,7 +34,7 @@ export function CodeEditor({
 
     const view = new CodeMirrorEditorView({
       state: EditorState.create({
-        doc: initialValue ?? "",
+        doc: initialValueRef.current,
         extensions: createEditorExtensions(fileName, content => {
           onChangeRef.current(content);
         }),

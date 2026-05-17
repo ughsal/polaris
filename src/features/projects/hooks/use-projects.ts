@@ -9,6 +9,10 @@ function sortProjectsByUpdatedAt(projects: Doc<"projects">[]) {
   return [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
+function getNextUpdatedAt(...values: number[]) {
+  return Math.max(0, ...values) + 1;
+}
+
 /**
  * Returns ALL projects for the current user.
  */
@@ -54,8 +58,11 @@ export const useCreateProject = () => {
           args.name,
           existingProjects.map(project => project.name),
         );
-        const optimisticTimestamp = Date.now();
-        const optimisticCreationTime = existingProjects[0]?._creationTime ?? 0;
+        const optimisticTimestamp = getNextUpdatedAt(
+          ...existingProjects.map(project => project.updatedAt),
+        );
+        const optimisticCreationTime =
+          Math.max(0, ...existingProjects.map(project => project._creationTime)) + 1;
 
         const newProject: Doc<"projects"> = {
           _id: crypto.randomUUID() as Id<"projects">,
@@ -108,6 +115,12 @@ export const useRenameProject = () => {
             : [],
       );
 
+      const nextUpdatedAt = getNextUpdatedAt(
+        existingProject?.updatedAt ?? 0,
+        ...(allProjects?.map(project => project.updatedAt) ?? []),
+        ...(partialProjects?.map(project => project.updatedAt) ?? []),
+      );
+
       if (existingProject !== undefined) {
         localStore.setQuery(
           api.projects.getById,
@@ -115,13 +128,12 @@ export const useRenameProject = () => {
           {
             ...existingProject,
             name: uniqueName || trimmedName,
-            updatedAt: Date.now(),
+            updatedAt: nextUpdatedAt,
           },
         );
       }
 
       if (allProjects !== undefined) {
-        const updatedAt = Date.now();
         localStore.setQuery(
           api.projects.get,
           {},
@@ -130,7 +142,7 @@ export const useRenameProject = () => {
               ? {
                   ...project,
                   name: uniqueName || trimmedName,
-                  updatedAt,
+                  updatedAt: nextUpdatedAt,
                 }
               : project,
           ),
@@ -138,7 +150,6 @@ export const useRenameProject = () => {
       }
 
       if (partialProjects !== undefined) {
-        const updatedAt = Date.now();
         localStore.setQuery(
           api.projects.getPartial,
           { limit: 6 },
@@ -148,7 +159,7 @@ export const useRenameProject = () => {
                 ? {
                     ...project,
                     name: uniqueName || trimmedName,
-                    updatedAt,
+                    updatedAt: nextUpdatedAt,
                   }
                 : project,
             ),

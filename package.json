@@ -45,6 +45,7 @@
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "next-themes": "^0.4.6",
+    "ollama": "^0.6.3",
     "openai": "^6.22.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",

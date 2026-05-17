@@ -9,6 +9,9 @@ import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { editorTheme } from "./theme";
 import { getLanguageExtension } from "./language-extension";
 import { createMinimapExtension } from "./minimap";
+import { createQuickEditExtension } from "./quick-edit";
+import { createSelectionTooltipExtension } from "./selection-tooltip";
+import { createSuggestionExtension } from "./suggestion";
 
 export function createEditorExtensions(
   fileName: string,
@@ -18,6 +21,9 @@ export function createEditorExtensions(
 
   return [
     basicSetup,
+    ...createSelectionTooltipExtension(),
+    ...createQuickEditExtension(fileName),
+    ...createSuggestionExtension(fileName),
     keymap.of([indentWithTab]),
     oneDark,
     editorTheme,

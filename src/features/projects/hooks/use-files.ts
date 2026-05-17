@@ -3,6 +3,10 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
+function getNextUpdatedAt(...values: number[]) {
+  return Math.max(0, ...values) + 1;
+}
+
 export const useFolderContents = (
   projectId: Id<"projects">,
   parentId?: Id<"files">,
@@ -49,15 +53,6 @@ export const useUpdateFile = () => {
         return;
       }
 
-      const now = Date.now();
-      const updatedFile = {
-        ...existingFile,
-        content: args.content,
-        updatedAt: now,
-      };
-
-      localStore.setQuery(api.files.getFile, { id: args.id }, updatedFile);
-
       const project = localStore.getQuery(api.projects.getById, {
         id: existingFile.projectId,
       });
@@ -65,6 +60,19 @@ export const useUpdateFile = () => {
       const partialProjects = localStore.getQuery(api.projects.getPartial, {
         limit: 6,
       });
+      const now = getNextUpdatedAt(
+        existingFile.updatedAt,
+        project?.updatedAt ?? 0,
+        ...(projects?.map(item => item.updatedAt) ?? []),
+        ...(partialProjects?.map(item => item.updatedAt) ?? []),
+      );
+      const updatedFile = {
+        ...existingFile,
+        content: args.content,
+        updatedAt: now,
+      };
+
+      localStore.setQuery(api.files.getFile, { id: args.id }, updatedFile);
 
       if (project !== undefined) {
         localStore.setQuery(api.projects.getById, { id: existingFile.projectId }, {

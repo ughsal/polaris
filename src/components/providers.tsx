@@ -10,6 +10,7 @@ import {
 } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ThemeProvider } from "next-themes";
+import { Toaster } from "@/components/ui/sonner";
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -30,6 +31,7 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
           <AuthLoading>
             <AuthLoadingView />
           </AuthLoading>
+          <Toaster />
         </ThemeProvider>
       </ConvexProviderWithClerk>
     </ClerkProvider>
