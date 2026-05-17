@@ -75,9 +75,12 @@ export function ProjectIdLayout({
       <div className="min-h-0 flex-1 border-t border-border/50">
         {isConversationOpen ? (
           <Allotment
-            defaultSizes={[SIDEBAR_DEFAULT_WIDTH, MAIN_DEFAULT_SIZE]}
+            defaultSizes={[MAIN_DEFAULT_SIZE, SIDEBAR_DEFAULT_WIDTH]}
             separator
           >
+            <Allotment.Pane preferredSize={MAIN_DEFAULT_SIZE}>
+              <div className="h-full min-h-0 min-w-0">{children}</div>
+            </Allotment.Pane>
             <Allotment.Pane
               snap
               minSize={SIDEBAR_MIN_WIDTH}
@@ -85,9 +88,6 @@ export function ProjectIdLayout({
               preferredSize={SIDEBAR_DEFAULT_WIDTH}
             >
               <ConversationSidebar projectId={projectId} />
-            </Allotment.Pane>
-            <Allotment.Pane preferredSize={MAIN_DEFAULT_SIZE}>
-              <div className="h-full min-h-0 min-w-0">{children}</div>
             </Allotment.Pane>
           </Allotment>
         ) : (

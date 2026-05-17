@@ -1,23 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { Clock3, Copy, History, Loader2, MessageSquarePlus, Send, Plus } from "lucide-react";
+import {
+  Clock3,
+  Copy,
+  History,
+  Loader2,
+  MessageSquarePlus,
+  Send,
+  Plus,
+} from "lucide-react";
 import { toast } from "sonner";
 
-import { DEFAULT_CONVERSATION_TITLE } from "../../../../convex/constants";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 
+import { DEFAULT_CONVERSATION_TITLE } from "../constants";
 import {
   useConversation,
   useConversations,
   useCreateConversation,
   useMessages,
 } from "../hooks/use-conversations";
+import { PastConversationsDialog } from "./past-conversations-dialog";
 
 interface ConversationSidebarProps {
   projectId: Id<"projects">;
@@ -32,6 +41,7 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
     Id<"conversations"> | null
   >(null);
   const [input, setInput] = useState("");
+  const [pastConversationsOpen, setPastConversationsOpen] = useState(false);
   const conversations = useConversations(projectId);
   const createConversation = useCreateConversation();
   const activeConversationId =
@@ -49,7 +59,10 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
     }
 
     for (let index = messages.length - 1; index >= 0; index -= 1) {
-      if (messages[index]?.role === "assistant" && messages[index]?.status === "completed") {
+      if (
+        messages[index]?.role === "assistant" &&
+        messages[index]?.status === "completed"
+      ) {
         return index;
       }
     }
@@ -76,19 +89,39 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
     }
   };
 
-  const handleHistory = () => {
-    toast.message("Conversation history arrives in a later sprint.");
-  };
+  const handleCancel = async () => {
+    try {
+      const response = await fetch("/api/messages/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ projectId }),
+      });
 
-  const handleCancel = () => {
-    toast.message("Cancellation is deferred to a later sprint.");
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          json && typeof json === "object" && "error" in json && typeof json.error === "string"
+            ? json.error
+            : "Unable to cancel message.";
+        throw new Error(message);
+      }
+
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[conversation-sidebar] cancelled messages", json);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to cancel message.");
+    }
   };
 
   const handleSubmit = async () => {
     const trimmedMessage = input.trim();
 
     if (isProcessing && !trimmedMessage) {
-      handleCancel();
+      await handleCancel();
       setInput("");
       return;
     }
@@ -152,8 +185,26 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
     }
   };
 
+  const handleInputKeyDown = async (
+    event: KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+
+    event.preventDefault();
+    await handleSubmit();
+  };
+
   return (
     <aside className="flex h-full min-h-0 flex-col bg-muted/25 text-foreground">
+      <PastConversationsDialog
+        projectId={projectId}
+        open={pastConversationsOpen}
+        onOpenChange={setPastConversationsOpen}
+        onSelect={conversationId => setSelectedConversationId(conversationId)}
+      />
+
       <div className="flex h-9 items-center justify-between gap-2 border-b border-border/60 px-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">
@@ -165,7 +216,7 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
           <Button
             variant="ghost"
             size="icon-xs"
-            onClick={handleHistory}
+            onClick={() => setPastConversationsOpen(true)}
             aria-label="Conversation history"
           >
             <History className="size-3.5" />
@@ -214,6 +265,7 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
                     message.role === "user"
                       ? "ml-8 border-border/60 bg-background"
                       : "mr-8 border-border/60 bg-muted/40",
+                    message.status === "cancelled" && "opacity-75",
                   )}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -239,6 +291,8 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
                       <Spinner className="size-4" />
                       <span className="text-sm font-medium">Thinking</span>
                     </div>
+                  ) : message.role === "assistant" && message.status === "cancelled" ? (
+                    <p className="italic text-muted-foreground">Request cancelled</p>
                   ) : (
                     <p className="whitespace-pre-wrap break-words leading-6 text-foreground">
                       {message.content || (message.role === "assistant" ? "Thinking" : "")}
@@ -262,7 +316,7 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
                 variant="ghost"
                 size="xs"
                 className="h-6 gap-1 px-2 text-[11px]"
-                onClick={handleHistory}
+                onClick={() => setPastConversationsOpen(true)}
               >
                 <Clock3 className="size-3.5" />
                 History
@@ -272,6 +326,7 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
             <Textarea
               value={input}
               onChange={event => setInput(event.target.value)}
+              onKeyDown={event => void handleInputKeyDown(event)}
               placeholder="Ask the conversation..."
               className="min-h-24 resize-none border-0 bg-muted/30 text-sm shadow-none focus-visible:ring-0"
               disabled={isProcessing}
@@ -289,7 +344,7 @@ export function ConversationSidebar({ projectId }: ConversationSidebarProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleCancel}
+                    onClick={() => void handleCancel()}
                     type="button"
                   >
                     Cancel

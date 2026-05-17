@@ -17,7 +17,9 @@ function getNextUpdatedAt(...values: number[]) {
  * Returns ALL projects for the current user.
  */
 export const useProjects = () => {
-  return useQuery(api.projects.get);
+  const { isLoaded, isSignedIn } = useAuth();
+
+  return useQuery(api.projects.get, isLoaded && isSignedIn ? {} : "skip");
 };
 
 /**
@@ -25,7 +27,12 @@ export const useProjects = () => {
  * Pass the number of projects you want back.
  */
 export const useProjectsPartial = (limit: number) => {
-  return useQuery(api.projects.getPartial, { limit });
+  const { isLoaded, isSignedIn } = useAuth();
+
+  return useQuery(
+    api.projects.getPartial,
+    isLoaded && isSignedIn ? { limit } : "skip",
+  );
 };
 
 /**
@@ -35,9 +42,11 @@ export const useProject = (
   projectId: Id<"projects">,
   options?: { skip?: boolean },
 ) => {
+  const { isLoaded, isSignedIn } = useAuth();
+
   return useQuery(
     api.projects.getById,
-    options?.skip ? "skip" : { id: projectId },
+    options?.skip || !isLoaded || !isSignedIn ? "skip" : { id: projectId },
   );
 };
 
