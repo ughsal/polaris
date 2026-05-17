@@ -1,1 +1,2 @@
-export const DEFAULT_CONVERSATION_TITLE = "New Conversation";
+// Intentionally left empty. Conversation UI constants live in the frontend
+// feature layer so they can be shared with Inngest runtime code.

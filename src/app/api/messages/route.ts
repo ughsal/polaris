@@ -60,6 +60,27 @@ export async function POST(request: Request) {
     }
     const { project } = conversationWithProject;
 
+    const processingMessages = await convex.query(api.system.getProcessingMessages, {
+      internalKey,
+      projectId: project._id,
+    });
+
+    for (const processingMessage of processingMessages) {
+      await inngest.send({
+        name: "message/cancel",
+        data: {
+          messageId: processingMessage._id,
+          projectId: project._id,
+        },
+      });
+
+      await convex.mutation(api.system.updateMessageStatus, {
+        internalKey,
+        messageId: processingMessage._id,
+        status: "cancelled",
+      });
+    }
+
     await convex.mutation(api.system.createMessage, {
       internalKey,
       conversationId: conversationId as Id<"conversations">,
@@ -81,6 +102,9 @@ export async function POST(request: Request) {
       name: "message/sent",
       data: {
         messageId: assistantMessageId,
+        conversationId: conversationId as Id<"conversations">,
+        projectId: project._id,
+        message,
       },
     });
 
@@ -88,6 +112,7 @@ export async function POST(request: Request) {
       success: true,
       eventId: event.ids[0] ?? crypto.randomUUID(),
       messageId: assistantMessageId,
+      didCancelPreviousMessages: processingMessages.length > 0,
     });
   } catch (error) {
     const message = getErrorMessage(error);
