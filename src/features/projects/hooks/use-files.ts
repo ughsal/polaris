@@ -14,6 +14,14 @@ export const useFolderContents = (
   );
 };
 
+export const useFile = (fileId: Id<"files"> | null) => {
+  return useQuery(api.files.getFile, fileId ? { id: fileId } : "skip");
+};
+
+export const useFilePath = (fileId: Id<"files"> | null) => {
+  return useQuery(api.files.getFilePath, fileId ? { id: fileId } : "skip");
+};
+
 export const useCreateFile = () => {
   return useMutation(api.files.createFile);
 };
@@ -31,5 +39,71 @@ export const useDeleteFile = () => {
 };
 
 export const useUpdateFile = () => {
-  return useMutation(api.files.updateFile);
+  return useMutation(api.files.updateFile).withOptimisticUpdate(
+    (localStore, args) => {
+      const existingFile = localStore.getQuery(api.files.getFile, {
+        id: args.id,
+      });
+
+      if (!existingFile || existingFile.type !== "file") {
+        return;
+      }
+
+      const now = Date.now();
+      const updatedFile = {
+        ...existingFile,
+        content: args.content,
+        updatedAt: now,
+      };
+
+      localStore.setQuery(api.files.getFile, { id: args.id }, updatedFile);
+
+      const project = localStore.getQuery(api.projects.getById, {
+        id: existingFile.projectId,
+      });
+      const projects = localStore.getQuery(api.projects.get, {});
+      const partialProjects = localStore.getQuery(api.projects.getPartial, {
+        limit: 6,
+      });
+
+      if (project !== undefined) {
+        localStore.setQuery(api.projects.getById, { id: existingFile.projectId }, {
+          ...project,
+          updatedAt: now,
+        });
+      }
+
+      if (projects !== undefined) {
+        localStore.setQuery(
+          api.projects.get,
+          {},
+          projects.map(item =>
+            item._id === existingFile.projectId
+              ? {
+                  ...item,
+                  updatedAt: now,
+                }
+              : item,
+          ),
+        );
+      }
+
+      if (partialProjects !== undefined) {
+        const updatedProjects = partialProjects.map(item =>
+          item._id === existingFile.projectId
+            ? {
+                ...item,
+                updatedAt: now,
+              }
+            : item,
+        );
+
+        localStore.setQuery(
+          api.projects.getPartial,
+          { limit: 6 },
+          [...updatedProjects].sort((a, b) => b.updatedAt - a.updatedAt),
+        );
+      }
+    },
+  );
 };

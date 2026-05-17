@@ -5,6 +5,10 @@ import { useAuth } from "@clerk/nextjs";
 import { Id, Doc } from "../../../../convex/_generated/dataModel";
 import { resolveUniqueProjectName } from "@/lib/project-name";
 
+function sortProjectsByUpdatedAt(projects: Doc<"projects">[]) {
+  return [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
 /**
  * Returns ALL projects for the current user.
  */
@@ -50,7 +54,7 @@ export const useCreateProject = () => {
           args.name,
           existingProjects.map(project => project.name),
         );
-        const optimisticTimestamp = existingProjects[0]?.updatedAt ?? 0;
+        const optimisticTimestamp = Date.now();
         const optimisticCreationTime = existingProjects[0]?._creationTime ?? 0;
 
         const newProject: Doc<"projects"> = {
@@ -64,6 +68,10 @@ export const useCreateProject = () => {
         localStore.setQuery(api.projects.get, {}, [
           newProject,
           ...existingProjects,
+        ]);
+        localStore.setQuery(api.projects.getPartial, { limit: 6 }, [
+          newProject,
+          ...sortProjectsByUpdatedAt(existingProjects).slice(0, 5),
         ]);
       }
     },
@@ -107,11 +115,13 @@ export const useRenameProject = () => {
           {
             ...existingProject,
             name: uniqueName || trimmedName,
+            updatedAt: Date.now(),
           },
         );
       }
 
       if (allProjects !== undefined) {
+        const updatedAt = Date.now();
         localStore.setQuery(
           api.projects.get,
           {},
@@ -120,6 +130,7 @@ export const useRenameProject = () => {
               ? {
                   ...project,
                   name: uniqueName || trimmedName,
+                  updatedAt,
                 }
               : project,
           ),
@@ -127,17 +138,21 @@ export const useRenameProject = () => {
       }
 
       if (partialProjects !== undefined) {
+        const updatedAt = Date.now();
         localStore.setQuery(
           api.projects.getPartial,
           { limit: 6 },
-          partialProjects.map(project =>
-            project._id === args.id
-              ? {
-                  ...project,
-                  name: uniqueName || trimmedName,
-                }
-              : project,
-          ),
+          sortProjectsByUpdatedAt(
+            partialProjects.map(project =>
+              project._id === args.id
+                ? {
+                    ...project,
+                    name: uniqueName || trimmedName,
+                    updatedAt,
+                  }
+                : project,
+            ),
+          ).slice(0, 6),
         );
       }
     },

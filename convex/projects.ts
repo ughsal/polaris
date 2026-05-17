@@ -92,7 +92,7 @@ export const get = query({
 
 /**
  * Returns a limited slice of projects owned by the authenticated user.
- * Sorted descending. Used for the dashboard's "recent projects" list.
+ * Sorted by last updated descending. Used for the dashboard's "recent projects" list.
  */
 export const getPartial = query({
   args: {
@@ -103,7 +103,7 @@ export const getPartial = query({
 
     return await ctx.db
       .query("projects")
-      .withIndex("by_owner", q => q.eq("ownerId", identity.subject))
+      .withIndex("by_owner_updated", q => q.eq("ownerId", identity.subject))
       .order("desc")
       .take(args.limit);
   },

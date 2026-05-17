@@ -173,6 +173,38 @@ export const getFile = query({
   },
 });
 
+export const getFilePath = query({
+  args: {
+    id: v.id("files"),
+  },
+  handler: async (ctx, args) => {
+    const file = await assertFileAccess(ctx, args.id);
+    const path: Array<{ _id: Id<"files">; name: string }> = [];
+
+    let current: Doc<"files"> | null = file;
+
+    while (current) {
+      path.unshift({
+        _id: current._id,
+        name: current.name,
+      });
+
+      if (!current.parentId) {
+        break;
+      }
+
+      const parent: Doc<"files"> | null = await ctx.db.get(current.parentId);
+      if (!parent || parent.projectId !== file.projectId) {
+        throw new Error("File path is no longer available.");
+      }
+
+      current = parent;
+    }
+
+    return path;
+  },
+});
+
 export const getFolderContents = query({
   args: {
     projectId: v.id("projects"),
@@ -295,6 +327,10 @@ export const updateFile = mutation({
 
     if (file.type !== "file") {
       throw new Error("Only files can be updated.");
+    }
+
+    if (file.storageId) {
+      throw new Error("Binary files cannot be updated as text.");
     }
 
     await ctx.db.patch(args.id, {
