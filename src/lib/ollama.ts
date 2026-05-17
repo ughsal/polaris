@@ -1,22 +1,9 @@
 import { Ollama } from "ollama";
-import { z } from "zod";
 
-import {
-  type SuggestionRequest,
-  suggestionResponseSchema,
-  suggestionRequestSchema,
-} from "@/features/editor/extensions/suggestion/schema";
+import { type SuggestionRequest, suggestionRequestSchema } from "@/features/editor/extensions/suggestion/schema";
 
 const DEFAULT_OLLAMA_BASE_URL = "http://0.0.0.0:11434";
 const DEFAULT_OLLAMA_MODEL = "nemotron-3-super:cloud";
-
-const ollamaGenerateResponseSchema = z.object({
-  response: z.string().default(""),
-});
-
-const structuredSuggestionSchema = z.object({
-  suggestion: z.string(),
-});
 
 function buildSuggestionPrompt(input: SuggestionRequest) {
   return [
@@ -56,6 +43,35 @@ function normalizeModelOutput(text: string) {
     .replace(/\r/g, "");
 }
 
+function extractSuggestion(text: string) {
+  const cleaned = normalizeModelOutput(text).trim();
+
+  if (!cleaned) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(cleaned) as unknown;
+
+    if (typeof parsed === "string") {
+      return normalizeModelOutput(parsed).trim();
+    }
+
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "suggestion" in parsed &&
+      typeof parsed.suggestion === "string"
+    ) {
+      return normalizeModelOutput(parsed.suggestion).trim();
+    }
+  } catch {
+    return cleaned;
+  }
+
+  return cleaned;
+}
+
 function getOllamaConfig() {
   const baseUrl = (process.env.OLLAMA_BASE_URL || DEFAULT_OLLAMA_BASE_URL).replace(
     /\/+$/u,
@@ -90,42 +106,18 @@ export async function generateOllamaSuggestion(
     stream: false,
   });
 
-  const parsed = ollamaGenerateResponseSchema.safeParse(response);
+  const responseText =
+    typeof response.response === "string" ? response.response : "";
 
-  if (!parsed.success) {
-    console.error("[ai/suggestion] ollama:invalid-response", {
-      model,
-      baseUrl,
-      response,
-    });
-    throw new Error("Invalid Ollama response.");
+  if (!responseText.trim()) {
+    throw new Error("Empty Ollama response.");
   }
 
-  const cleanedResponse = normalizeModelOutput(parsed.data.response);
-  let maybeStructured: unknown;
+  const suggestion = extractSuggestion(responseText);
 
-  try {
-    maybeStructured = JSON.parse(cleanedResponse) as unknown;
-  } catch (error) {
-    console.error("[ai/suggestion] ollama:json-parse-error", {
-      model,
-      baseUrl,
-      cleanedResponse,
-      error,
-    });
-    throw new Error("Invalid Ollama structured response.");
+  if (!suggestion) {
+    throw new Error("Empty Ollama suggestion.");
   }
 
-  const structuredSuggestion = structuredSuggestionSchema.safeParse(maybeStructured);
-
-  if (!structuredSuggestion.success) {
-    console.error("[ai/suggestion] ollama:structured-parse-error", {
-      model,
-      baseUrl,
-      maybeStructured,
-    });
-    throw new Error("Invalid Ollama structured response.");
-  }
-
-  return suggestionResponseSchema.parse(structuredSuggestion.data).suggestion;
+  return suggestion;
 }
