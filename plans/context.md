@@ -29,7 +29,7 @@ These goals are the product direction implied by the repository structure and co
 
 ## Current Course/Build Progress
 
-The repository is completed through the Code Editor State phase at the implementation level. The IDE Layout, File Explorer, and Code Editor State sprints now exist as working workspace foundations, while later phases are still intentionally unimplemented.
+The repository is completed through Sprint 12: AI Features at the implementation level. The IDE Layout, File Explorer, Code Editor State, and all three AI Features sub-sprints 12A, 12B, and 12C now exist as working workspace foundations, while later phases are still intentionally unimplemented.
 
 Course order:
 
@@ -63,7 +63,7 @@ Current mapping to the repo:
 - IDE Layout is implemented as a project route shell with split panes, project navbar, and editor workspace chrome.
 - File Explorer is implemented with Convex-backed files/folders, recursive tree rendering, folder CRUD, and file open/delete wiring into editor tabs.
 - Code Editor State is implemented with project-scoped tab state, preview vs pinned tabs, breadcrumbs, CodeMirror 6 editing, autosave, and binary-file placeholders.
-- AI Features, Conversation System, AI Agent Tools, Webcontainers Terminal Preview, GitHub Import & Export, Billing & Final Polish, and Deployment are not yet implemented.
+- AI Features is fully implemented for Sprint 12, with Ollama-backed editor suggestions, quick-edit rewriting, a selection action tooltip, and final request-path hardening now wired into the editor. Sprint 12 is complete in full, including 12A, 12B, and 12C. Conversation System, AI Agent Tools, Webcontainers Terminal Preview, GitHub Import & Export, Billing & Final Polish, and Deployment are not yet implemented.
 
 ## Sprint 09 Progress
 
@@ -113,6 +113,50 @@ Completed in this sprint:
 
 This sprint still intentionally leaves later course sections unimplemented.
 
+## Sprint 12A Progress
+
+The AI Suggestions Foundation sub-sprint has now been implemented.
+
+Completed in this sub-sprint:
+
+- the app shell now mounts Sonner to support editor-surface AI failure toasts
+- a new authenticated `POST /api/suggestion` route now validates request bodies and generates code suggestions through Ollama
+- shared Zod schemas now define the suggestion request and response contract
+- CodeMirror now includes a ghost-text suggestion extension with debounce, `AbortController` cancellation, and Tab-to-accept behavior
+- a root `.env.example` now documents the Ollama suggestion env placeholders
+- optimistic cache timestamps from earlier project/file hooks were adjusted to satisfy current lint purity rules without losing immediate recency updates
+
+This sub-sprint still intentionally leaves Quick Edit, Firecrawl-backed editing, selection tooltips, Add to Chat, conversations, and agent tooling unimplemented.
+
+## Sprint 12B Progress
+
+The Quick Edit + Firecrawl sub-sprint has now been implemented.
+
+Completed in this sub-sprint:
+
+- the editor now supports a `Cmd/Ctrl+K` quick-edit tooltip for non-empty selections
+- a new authenticated `POST /api/ai/quick-edit` route validates request bodies and returns structured replacement text
+- bounded Firecrawl URL extraction and scraping now support quick-edit prompts that reference external URLs
+- quick-edit requests are cancellable and selected code is replaced atomically on success
+- the quick-edit server path uses the existing Ollama-backed AI integration style instead of introducing a separate hosted provider
+- quick-edit and suggestion generation now prefer structured JSON output with `think: false`, and suggestion failures are logged in development rather than surfaced as noisy toasts
+
+This sub-sprint still intentionally leaves the selection tooltip action UI, Add to Chat behavior, conversations, and agent tooling unimplemented.
+
+## Sprint 12C Progress
+
+The Selection Tooltip + Hardening sub-sprint has now been implemented.
+
+Completed in this sub-sprint:
+
+- the editor now shows a lightweight selection tooltip for non-empty selections
+- the selection tooltip exposes Quick Edit directly from the selected code
+- Add to Chat is now present as a visual-only placeholder and does not introduce conversation behavior yet
+- quick-edit and suggestion request aborts are now treated as expected cancellations instead of noisy server failures
+- Firecrawl timeout cleanup is now explicit so timed requests do not leave stray timeout state behind
+
+This sub-sprint still intentionally leaves real conversation flows, agent tooling, Webcontainers Terminal Preview, GitHub Import & Export, Billing & Final Polish, and Deployment unimplemented.
+
 ## Current Architecture
 
 - Next.js App Router structure under `src/app`
@@ -125,6 +169,10 @@ This sprint still intentionally leaves later course sections unimplemented.
 - shadcn-style UI components under `src/components/ui`
 - project workspace state managed with Zustand
 - editor runtime built on CodeMirror 6 extensions
+- editor AI suggestion path via app route plus CodeMirror ghost-text extension
+- dedicated Ollama helper for editor suggestions through `src/lib/ollama.ts`
+- quick-edit AI path via `src/app/api/ai/quick-edit/route.ts` plus CodeMirror quick-edit tooltip extension
+- selection action UI via a dedicated CodeMirror selection-tooltip extension
 
 ## Instructor Dependency Baseline
 
@@ -157,11 +205,7 @@ If the local `package.json` differs from that instructor baseline, future sprint
 
 These are explicitly not done yet:
 
-- real IDE layout implementation
-- persistent file explorer
-- code editor state
-- AI assistant features
-- conversation/message system
+- Conversation System
 - AI agent tools
 - WebContainers terminal and preview
 - GitHub import/export
