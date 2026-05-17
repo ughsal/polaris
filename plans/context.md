@@ -244,6 +244,39 @@ Future cleanup should verify:
 
 This section is context only. It is not a cleanup sprint plan and should not be treated as implementation guidance.
 
+## Sprint 14: Token Efficiency Requirement
+
+This sprint uses local Ollama only. Keep prompts, tool output, retries, and loops small, but do not remove any required feature.
+
+- Use only recent conversation context, ideally the last 6-10 messages, and exclude processing placeholders.
+- Do not send all project files to the model. Call `list-files` first, then read only the files needed.
+- Keep `list-files` lightweight: return only `id`, `name`, `type`, and `parentId`, with folders first and files second.
+- Keep `read-files` selective and bounded. Require explicit file IDs and truncate very large files instead of dumping everything.
+- Keep tool results short and structured. Return IDs, names, and success/error status, not large raw payloads.
+- Use a modest loop limit, around 8-12 iterations, and stop as soon as the assistant has a final answer with no more tool calls.
+- Keep final responses concise and mention only what changed and which files were touched.
+- Prefer a smaller Ollama model for title generation when configured, and the stronger local model for coding/tool work.
+- If Ollama returns invalid tool JSON, retry once at most, then surface a recoverable error.
+- Cancel existing processing for the project before starting a new message to avoid duplicate jobs.
+- Keep destructive actions safe. If a delete or bulk action is ambiguous, ask a short clarification first.
+
+Required features must remain intact:
+
+- cancellation
+- past conversations dialog
+- title generation
+- list files
+- read files
+- create file
+- bulk create files
+- create folder
+- update file
+- rename file/folder
+- delete file/folder
+- final assistant response update
+
+Do not switch away from Ollama or introduce Anthropic, OpenAI, or Google providers.
+
 ## How Future Sprint Plans Should Use This File
 
 Each sprint plan should:
