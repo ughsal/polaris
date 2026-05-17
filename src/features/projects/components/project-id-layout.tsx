@@ -9,6 +9,7 @@ import { ArrowLeft, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "./navbar";
 import { useProjectConversationOpen } from "../store/use-project-layout-store";
+import { ConversationSidebar } from "../../conversations/components/conversation-sidebar";
 
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 420;
@@ -83,23 +84,7 @@ export function ProjectIdLayout({
               maxSize={SIDEBAR_MAX_WIDTH}
               preferredSize={SIDEBAR_DEFAULT_WIDTH}
             >
-              <section className="flex h-full min-h-0 flex-col bg-muted/30">
-                <div className="border-b border-border/50 px-4 py-3">
-                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                    Conversation
-                  </p>
-                </div>
-                <div className="flex flex-1 items-center justify-center px-6 text-center">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">
-                      Conversation sidebar
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      AI chat and message history arrive in a later sprint.
-                    </p>
-                  </div>
-                </div>
-              </section>
+              <ConversationSidebar projectId={projectId} />
             </Allotment.Pane>
             <Allotment.Pane preferredSize={MAIN_DEFAULT_SIZE}>
               <div className="h-full min-h-0 min-w-0">{children}</div>

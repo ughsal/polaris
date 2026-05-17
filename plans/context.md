@@ -29,7 +29,7 @@ These goals are the product direction implied by the repository structure and co
 
 ## Current Course/Build Progress
 
-The repository is completed through Sprint 12: AI Features at the implementation level. The IDE Layout, File Explorer, Code Editor State, and all three AI Features sub-sprints 12A, 12B, and 12C now exist as working workspace foundations, while later phases are still intentionally unimplemented.
+The repository is completed through Sprint 13: Conversation System at the implementation level. The IDE Layout, File Explorer, Code Editor State, all three AI Features sub-sprints 12A, 12B, and 12C, and the Conversation System foundation now exist as working workspace foundations, while later phases are still intentionally unimplemented.
 
 Course order:
 
@@ -63,7 +63,7 @@ Current mapping to the repo:
 - IDE Layout is implemented as a project route shell with split panes, project navbar, and editor workspace chrome.
 - File Explorer is implemented with Convex-backed files/folders, recursive tree rendering, folder CRUD, and file open/delete wiring into editor tabs.
 - Code Editor State is implemented with project-scoped tab state, preview vs pinned tabs, breadcrumbs, CodeMirror 6 editing, autosave, and binary-file placeholders.
-- AI Features is fully implemented for Sprint 12, with Ollama-backed editor suggestions, quick-edit rewriting, a selection action tooltip, and final request-path hardening now wired into the editor. Sprint 12 is complete in full, including 12A, 12B, and 12C. Conversation System, AI Agent Tools, Webcontainers Terminal Preview, GitHub Import & Export, Billing & Final Polish, and Deployment are not yet implemented.
+- AI Features is fully implemented for Sprint 12, with Ollama-backed editor suggestions, quick-edit rewriting, a selection action tooltip, and final request-path hardening now wired into the editor. Sprint 12 is complete in full, including 12A, 12B, and 12C. Conversation System is implemented as a storage-first foundation with conversation/message persistence, a sidebar, a send-message route, internal Convex system functions, and an Inngest processing stub. AI Agent Tools, Webcontainers Terminal Preview, GitHub Import & Export, Billing & Final Polish, and Deployment are not yet implemented.
 
 ## Sprint 09 Progress
 
@@ -157,6 +157,23 @@ Completed in this sub-sprint:
 
 This sub-sprint still intentionally leaves real conversation flows, agent tooling, Webcontainers Terminal Preview, GitHub Import & Export, Billing & Final Polish, and Deployment unimplemented.
 
+## Sprint 13 Progress
+
+The Conversation System sprint has now been implemented as a storage-first foundation.
+
+Completed in this sprint:
+
+- Convex now has `conversations` and `messages` tables with project-scoped ownership checks
+- public conversation queries and creation support now exist in `convex/conversations.ts`
+- internal-key-protected system functions now exist for route and background-job use
+- the project IDE shell now mounts a real conversation sidebar instead of a placeholder
+- the sidebar supports creating a conversation, sending a message, and rendering user/assistant message rows
+- the `/api/messages` route now creates user messages and assistant processing placeholders
+- the Inngest processing stub now marks assistant responses completed after a delay and applies a friendly fallback on failure
+- the project conversation boundary remains storage-first; full history dialog, full cancellation, and the real AI/tool loop are still deferred
+
+This sprint still intentionally leaves past-conversation history, full cancellation, real AI response generation, AI agent tools, tool loops, WebContainers terminal and preview, GitHub import/export, Billing & Final Polish, and Deployment unimplemented.
+
 ## Current Architecture
 
 - Next.js App Router structure under `src/app`
@@ -173,6 +190,7 @@ This sub-sprint still intentionally leaves real conversation flows, agent toolin
 - dedicated Ollama helper for editor suggestions through `src/lib/ollama.ts`
 - quick-edit AI path via `src/app/api/ai/quick-edit/route.ts` plus CodeMirror quick-edit tooltip extension
 - selection action UI via a dedicated CodeMirror selection-tooltip extension
+- conversation/message persistence through Convex plus an Inngest processing stub
 
 ## Instructor Dependency Baseline
 
@@ -205,7 +223,6 @@ If the local `package.json` differs from that instructor baseline, future sprint
 
 These are explicitly not done yet:
 
-- Conversation System
 - AI agent tools
 - WebContainers terminal and preview
 - GitHub import/export
