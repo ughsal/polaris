@@ -9,6 +9,12 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FileExplorer } from "./file-explorer";
+import { EditorView } from "../../editor/components/editor-view";
+import {
+  useProjectConversationActions,
+  useProjectConversationOpen,
+} from "../store/use-project-layout-store";
+import { Bot } from "lucide-react";
 
 type ProjectViewMode = "editor" | "preview";
 
@@ -23,6 +29,8 @@ interface ProjectIdViewProps {
 
 export function ProjectIdView({ projectId }: ProjectIdViewProps) {
   const [activeView, setActiveView] = useState<ProjectViewMode>("editor");
+  const isConversationOpen = useProjectConversationOpen(projectId);
+  const { toggleConversation } = useProjectConversationActions();
 
   return (
     <div
@@ -31,6 +39,16 @@ export function ProjectIdView({ projectId }: ProjectIdViewProps) {
     >
       <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
         <div className="flex items-center gap-2">
+          <Button
+            variant={isConversationOpen ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => toggleConversation(projectId)}
+            aria-label={
+              isConversationOpen ? "Hide conversation" : "Open conversation"
+            }
+          >
+            <Bot className="size-4" />
+          </Button>
           <Button
             variant={activeView === "editor" ? "secondary" : "ghost"}
             size="sm"
@@ -58,7 +76,7 @@ export function ProjectIdView({ projectId }: ProjectIdViewProps) {
       <div className="min-h-0 flex-1 p-4">
         <section
           className={cn(
-            "h-full rounded-lg border border-border/60 bg-muted/20",
+            "h-full overflow-hidden rounded-lg border border-border/60 bg-muted/20",
             activeView !== "editor" && "hidden",
           )}
         >
@@ -75,16 +93,7 @@ export function ProjectIdView({ projectId }: ProjectIdViewProps) {
               <FileExplorer projectId={projectId} />
             </Allotment.Pane>
             <Allotment.Pane preferredSize={EDITOR_DEFAULT_SIZE}>
-              <div className="flex h-full items-center justify-center px-6 text-center">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">
-                    Editor placeholder
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Real editor state and open-file behavior arrive in Sprint 11.
-                  </p>
-                </div>
-              </div>
+              <EditorView projectId={projectId} />
             </Allotment.Pane>
           </Allotment>
         </section>

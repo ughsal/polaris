@@ -21,6 +21,7 @@ import {
   useFolderContents,
 } from "../../hooks/use-files";
 import { useProject } from "../../hooks/use-projects";
+import { useEditor } from "../../../editor/hooks/use-editor";
 import { CreateInput } from "./create-input";
 import { FILE_EXPLORER_ROW_HEIGHT } from "./constants";
 import { LoadingRow } from "./loading-row";
@@ -35,6 +36,7 @@ export function FileExplorer({ projectId }: FileExplorerProps) {
   const [creating, setCreating] = useState<"file" | "folder" | null>(null);
   const [collapseKey, setCollapseKey] = useState(0);
   const project = useProject(projectId);
+  const { activeTabId, openFile, closeTab } = useEditor(projectId);
   const createFile = useCreateFile();
   const createFolder = useCreateFolder();
   const rootItems = useFolderContents(projectId, undefined, {
@@ -167,6 +169,9 @@ export function FileExplorer({ projectId }: FileExplorerProps) {
                     item={item}
                     level={1}
                     projectId={projectId}
+                    activeTabId={activeTabId}
+                    openFile={openFile}
+                    closeTab={closeTab}
                   />
                 ))
               )}

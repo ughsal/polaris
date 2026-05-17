@@ -33,6 +33,9 @@ interface TreeProps {
   item: Doc<"files">;
   level?: number;
   projectId: Id<"projects">;
+  activeTabId: Id<"files"> | null;
+  openFile: (fileId: Id<"files">, options: { pinned: boolean }) => void;
+  closeTab: (fileId: Id<"files">) => void;
 }
 
 function isCodeLikeFile(name: string) {
@@ -43,7 +46,14 @@ function getFileIcon(name: string) {
   return isCodeLikeFile(name) ? FileCode2 : FileText;
 }
 
-export function Tree({ item, level = 1, projectId }: TreeProps) {
+export function Tree({
+  item,
+  level = 1,
+  projectId,
+  activeTabId,
+  openFile,
+  closeTab,
+}: TreeProps) {
   const isFolder = item.type === "folder";
   const [isOpen, setIsOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -117,21 +127,23 @@ export function Tree({ item, level = 1, projectId }: TreeProps) {
         <TreeItemWrapper
           item={item}
           level={level}
+          isActive={!isFolder && activeTabId === item._id}
           onClick={() => {
             if (isFolder) {
               setIsOpen(current => !current);
               return;
             }
 
-            // TODO: Wire file selection in Sprint 11: Code Editor State.
+            openFile(item._id, { pinned: false });
           }}
           onDoubleClick={() => {
             if (!isFolder) {
-              // TODO: Wire persistent/open tab behavior in Sprint 11.
+              openFile(item._id, { pinned: true });
             }
           }}
           onRename={() => setIsRenaming(true)}
           onDelete={() => {
+            closeTab(item._id);
             void handleDelete();
           }}
           onCreateFile={
@@ -249,6 +261,9 @@ export function Tree({ item, level = 1, projectId }: TreeProps) {
                 item={child}
                 level={level + 1}
                 projectId={projectId}
+                activeTabId={activeTabId}
+                openFile={openFile}
+                closeTab={closeTab}
               />
             ))
           )}
