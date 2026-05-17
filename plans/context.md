@@ -29,7 +29,7 @@ These goals are the product direction implied by the repository structure and co
 
 ## Current Course/Build Progress
 
-The repository appears to be completed roughly through the Projects phase. The IDE Layout phase has only been started as a placeholder/shell, and later phases are not yet implemented.
+The repository is completed through the Code Editor State phase at the implementation level. The IDE Layout, File Explorer, and Code Editor State sprints now exist as working workspace foundations, while later phases are still intentionally unimplemented.
 
 Course order:
 
@@ -60,8 +60,10 @@ Current mapping to the repo:
 - Firecrawl AI is present as a Firecrawl helper, but it is not wired into a finished user flow.
 - Error Tracking is present through Sentry configuration and instrumentation.
 - Projects is implemented as the dashboard, project creation, project listing, and project navigation.
-- IDE Layout has begun with a project route that renders a VS Code-like placeholder shell.
-- File Explorer, Code Editor State, AI Features, Conversation System, AI Agent Tools, Webcontainers Terminal Preview, GitHub Import & Export, Billing & Final Polish, and Deployment are not yet implemented.
+- IDE Layout is implemented as a project route shell with split panes, project navbar, and editor workspace chrome.
+- File Explorer is implemented with Convex-backed files/folders, recursive tree rendering, folder CRUD, and file open/delete wiring into editor tabs.
+- Code Editor State is implemented with project-scoped tab state, preview vs pinned tabs, breadcrumbs, CodeMirror 6 editing, autosave, and binary-file placeholders.
+- AI Features, Conversation System, AI Agent Tools, Webcontainers Terminal Preview, GitHub Import & Export, Billing & Final Polish, and Deployment are not yet implemented.
 
 ## Sprint 09 Progress
 
@@ -80,6 +82,37 @@ Completed in this sprint:
 
 This sprint still intentionally leaves later course sections unimplemented.
 
+## Sprint 10 Progress
+
+The File Explorer sprint has now been implemented.
+
+Completed in this sprint:
+
+- Convex now includes a `files` table and file-tree queries/mutations
+- recursive file/folder explorer rendering now exists inside the Code tab
+- folder expand/collapse, create, rename, and delete behaviors work in the tree
+- file rows now open the editor workspace instead of acting as placeholders
+- deleting files closes associated tabs when needed
+- project `updatedAt` now advances when file trees change
+
+## Sprint 11 Progress
+
+The Code Editor State sprint has now been implemented.
+
+Completed in this sprint:
+
+- project-scoped editor tab state now tracks open tabs, active tab, and preview tab
+- single-click opens preview tabs and double-click pins files
+- tab closing, active-tab switching, and delete-driven tab cleanup now work
+- editor breadcrumbs resolve paths from the file tree
+- CodeMirror 6 now renders text files with OneDark, language-aware highlighting, minimap, indentation markers, and tab indentation support
+- editor autosave writes file content back to Convex with debounce and cleanup on active-file change/unmount
+- binary/storage-backed files render an unsupported placeholder instead of text editing UI
+- the conversation sidebar now defaults closed and can be toggled from the workspace header
+- the dashboard "Recently Updated" section now sorts by `updatedAt`, and file saves optimistically update project recency in the dashboard caches
+
+This sprint still intentionally leaves later course sections unimplemented.
+
 ## Current Architecture
 
 - Next.js App Router structure under `src/app`
@@ -90,6 +123,8 @@ This sprint still intentionally leaves later course sections unimplemented.
 - Sentry error tracking and request instrumentation
 - feature-based frontend folders under `src/features`
 - shadcn-style UI components under `src/components/ui`
+- project workspace state managed with Zustand
+- editor runtime built on CodeMirror 6 extensions
 
 ## Instructor Dependency Baseline
 
