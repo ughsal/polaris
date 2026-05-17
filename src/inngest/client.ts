@@ -4,5 +4,6 @@ import { sentryMiddleware } from "@inngest/middleware-sentry";
 export const inngest = new Inngest({
   id: "polaris",
   middleware: [sentryMiddleware()],
-  endpoint: "http://localhost:8288",
+  baseUrl: "http://localhost:8288",
+  isDev: process.env.NODE_ENV !== "production",
 });
