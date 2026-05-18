@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Allotment } from "allotment";
-import { FaGithub } from "react-icons/fa";
 import { Code2, Eye } from "lucide-react";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
@@ -10,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FileExplorer } from "./file-explorer";
 import { EditorView } from "../../editor/components/editor-view";
+import { PreviewView } from "./preview-view";
+import { ExportPopover } from "./export-popover";
 import {
   useProjectConversationActions,
   useProjectConversationOpen,
@@ -67,10 +68,7 @@ export function ProjectIdView({ projectId }: ProjectIdViewProps) {
           </Button>
         </div>
 
-        <Button variant="outline" size="sm" type="button">
-          <FaGithub className="size-4" />
-          Export to GitHub
-        </Button>
+        <ExportPopover projectId={projectId} />
       </div>
 
       <div className="min-h-0 flex-1 p-4">
@@ -98,23 +96,11 @@ export function ProjectIdView({ projectId }: ProjectIdViewProps) {
           </Allotment>
         </section>
 
-        <section
-          className={cn(
-            "h-full rounded-lg border border-border/60 bg-muted/20",
-            activeView !== "preview" && "hidden",
-          )}
-        >
-          <div className="flex h-full items-center justify-center px-6 text-center">
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">
-                Preview placeholder
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Live preview runtime arrives in a later sprint.
-              </p>
-            </div>
+        {activeView === "preview" ? (
+          <div className="h-full min-h-0">
+            <PreviewView projectId={projectId} />
           </div>
-        </section>
+        ) : null}
       </div>
     </div>
   );
