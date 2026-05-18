@@ -19,6 +19,7 @@ import {
 
 import { ProjectsList } from "./projects-list";
 import { ProjectsCommandDialog } from "./projects-command-dialog";
+import { ImportGitHubDialog } from "./import-github-dialog";
 import { useCreateProject } from "../hooks/use-projects";
 
 // ─── Font ─────────────────────────────────────────────────────────────────────
@@ -110,6 +111,7 @@ function GridBackground() {
 
 export function ProjectsView() {
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const createProject = useCreateProject();
 
   // GSAP entrance refs
@@ -140,6 +142,16 @@ export function ProjectsView() {
   // ── Keyboard shortcuts ───────────────────────────────────────────────────
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const isTypingTarget =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+
+      if (isTypingTarget) {
+        return;
+      }
+
       const mod = e.metaKey || e.ctrlKey;
 
       // Cmd+K → open command dialog
@@ -152,6 +164,11 @@ export function ProjectsView() {
       if (mod && e.key === "j") {
         e.preventDefault();
         handleCreateProject();
+      }
+
+      if (mod && e.key === "i") {
+        e.preventDefault();
+        setImportDialogOpen(true);
       }
     }
 
@@ -183,6 +200,11 @@ export function ProjectsView() {
       <ProjectsCommandDialog
         open={commandDialogOpen}
         onOpenChange={setCommandDialogOpen}
+      />
+
+      <ImportGitHubDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
       />
 
       {/* Main layout */}
@@ -235,10 +257,7 @@ export function ProjectsView() {
               {/* Import Project — placeholder, no real GitHub flow in Part 1 */}
               <Button
                 variant="outline"
-                onClick={() => {
-                  // TODO (Part 2): Open GitHub import dialog
-                  // For now this is a placeholder — no action taken.
-                }}
+                onClick={() => setImportDialogOpen(true)}
                 className="h-auto items-start justify-start p-4 bg-background border flex flex-col gap-6 rounded-none hover:bg-accent/40 transition-colors group/import"
               >
                 <div className="flex items-center justify-between w-full">

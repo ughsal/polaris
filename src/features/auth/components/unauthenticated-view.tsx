@@ -8,8 +8,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
-import { SignIn, SignInButton } from "@clerk/nextjs";
-import { components } from "./../../../../convex/_generated/api";
+import { SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 
 export const UnauthenticatedView = () => {
@@ -30,7 +29,7 @@ export const UnauthenticatedView = () => {
             </ItemDescription>
           </ItemContent>
           <ItemActions>
-            <SignInButton>
+            <SignInButton forceRedirectUrl="/" fallbackRedirectUrl="/">
               <Button variant="outline" size="sm">
                 Sign In
               </Button>

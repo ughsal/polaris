@@ -176,7 +176,13 @@ export function Navbar({ projectId }: NavbarProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <UserButton />
+          <UserButton
+            userProfileProps={{
+              additionalOAuthScopes: {
+                github: ["repo"],
+              },
+            }}
+          />
         </div>
       </header>
     </TooltipProvider>
