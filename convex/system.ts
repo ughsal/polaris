@@ -102,6 +102,90 @@ async function touchProject(ctx: MutationCtx, projectId: Id<"projects">) {
   });
 }
 
+async function assertParentFolder(
+  ctx: QueryCtx | MutationCtx,
+  projectId: Id<"projects">,
+  parentId?: Id<"files">,
+) {
+  if (!parentId) {
+    return null;
+  }
+
+  const parent = await ctx.db.get(parentId);
+
+  if (!parent || parent.projectId !== projectId) {
+    throw new Error("Parent folder not found.");
+  }
+
+  if (parent.type !== "folder") {
+    throw new Error("Parent must be a folder.");
+  }
+
+  return parent;
+}
+
+function normalizeProjectName(name: string) {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+function makeProjectSuffix() {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).slice(2, 8);
+  return `${timestamp}-${random}`;
+}
+
+function resolveUniqueProjectName(
+  desiredName: string,
+  existingProjects: Doc<"projects">[],
+) {
+  const baseName = normalizeProjectName(desiredName);
+
+  if (!baseName) {
+    throw new Error("Project name cannot be empty.");
+  }
+
+  const takenNames = new Set(existingProjects.map(project => project.name));
+
+  if (!takenNames.has(baseName)) {
+    return baseName;
+  }
+
+  let candidate = `${baseName}-${makeProjectSuffix()}`;
+
+  while (takenNames.has(candidate)) {
+    candidate = `${baseName}-${makeProjectSuffix()}`;
+  }
+
+  return candidate;
+}
+
+async function getOwnedProjects(
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+) {
+  return await ctx.db
+    .query("projects")
+    .withIndex("by_owner", q => q.eq("ownerId", ownerId))
+    .collect();
+}
+
+async function cleanupProjectFiles(ctx: MutationCtx, projectId: Id<"projects">) {
+  const files = await ctx.db
+    .query("files")
+    .withIndex("by_project", q => q.eq("projectId", projectId))
+    .collect();
+
+  const byId = new Map(files.map(file => [file._id, file] as const));
+
+  for (const file of files) {
+    const parent = file.parentId ? byId.get(file.parentId) : null;
+
+    if (!parent) {
+      await deleteFileTree(ctx, file._id);
+    }
+  }
+}
+
 export const getConversationById = query({
   args: {
     internalKey: v.string(),
@@ -176,6 +260,168 @@ export const getProjectWithUser = query({
     }
 
     return project;
+  },
+});
+
+export const getProjectById = query({
+  args: {
+    internalKey: v.string(),
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    validateInternalKey(args.internalKey);
+    return await ctx.db.get(args.projectId);
+  },
+});
+
+export const cleanup = mutation({
+  args: {
+    internalKey: v.string(),
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    validateInternalKey(args.internalKey);
+    await cleanupProjectFiles(ctx, args.projectId);
+    await touchProject(ctx, args.projectId);
+    return args.projectId;
+  },
+});
+
+export const generateUploadUrl = mutation({
+  args: {
+    internalKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    validateInternalKey(args.internalKey);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const createBinaryFile = mutation({
+  args: {
+    internalKey: v.string(),
+    projectId: v.id("projects"),
+    name: v.string(),
+    storageId: v.id("_storage"),
+    parentId: v.optional(v.id("files")),
+  },
+  handler: async (ctx, args) => {
+    validateInternalKey(args.internalKey);
+    await assertParentFolder(ctx, args.projectId, args.parentId);
+
+    const siblings = await getProjectSiblingItems(
+      ctx,
+      args.projectId,
+      args.parentId,
+    );
+    const name = ensureUniqueSiblingName(args.name, siblings, "file");
+
+    const fileId = await ctx.db.insert("files", {
+      projectId: args.projectId,
+      parentId: args.parentId,
+      name,
+      type: "file",
+      storageId: args.storageId,
+      updatedAt: Date.now(),
+    });
+
+    await touchProject(ctx, args.projectId);
+
+    return fileId;
+  },
+});
+
+export const updateImportStatus = mutation({
+  args: {
+    internalKey: v.string(),
+    projectId: v.id("projects"),
+    status: v.union(
+      v.literal("importing"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    validateInternalKey(args.internalKey);
+
+    await ctx.db.patch(args.projectId, {
+      importStatus: args.status,
+      updatedAt: Date.now(),
+    });
+
+    return args.projectId;
+  },
+});
+
+export const updateExportStatus = mutation({
+  args: {
+    internalKey: v.string(),
+    projectId: v.id("projects"),
+    status: v.optional(
+      v.union(
+        v.literal("exporting"),
+        v.literal("completed"),
+        v.literal("failed"),
+        v.literal("cancelled"),
+      ),
+    ),
+    repoUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    validateInternalKey(args.internalKey);
+
+    await ctx.db.patch(args.projectId, {
+      exportStatus: args.status,
+      exportRepoUrl: args.repoUrl,
+      updatedAt: Date.now(),
+    });
+
+    return args.projectId;
+  },
+});
+
+export const getProjectFilesWithUrls = query({
+  args: {
+    internalKey: v.string(),
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    validateInternalKey(args.internalKey);
+
+    const items = await ctx.db
+      .query("files")
+      .withIndex("by_project", q => q.eq("projectId", args.projectId))
+      .collect();
+
+    const sortedItems = items.sort(compareFileItems);
+
+    return await Promise.all(
+      sortedItems.map(async file => ({
+        ...file,
+        storageUrl: file.storageId ? await ctx.storage.getUrl(file.storageId) : null,
+      })),
+    );
+  },
+});
+
+export const createProject = mutation({
+  args: {
+    internalKey: v.string(),
+    name: v.string(),
+    ownerId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    validateInternalKey(args.internalKey);
+
+    const ownedProjects = await getOwnedProjects(ctx, args.ownerId);
+    const projectName = resolveUniqueProjectName(args.name, ownedProjects);
+
+    return await ctx.db.insert("projects", {
+      name: projectName,
+      ownerId: args.ownerId,
+      updatedAt: Date.now(),
+      importStatus: "importing",
+    });
   },
 });
 

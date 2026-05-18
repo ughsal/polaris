@@ -160,6 +160,35 @@ export const rename = mutation({
   },
 });
 
+export const updateSettings = mutation({
+  args: {
+    id: v.id("projects"),
+    settings: v.optional(
+      v.object({
+        installCommand: v.optional(v.string()),
+        devCommand: v.optional(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await verifyAuth(ctx);
+    const project = await ctx.db.get(args.id);
+
+    if (!project) {
+      throw new Error("Project not found.");
+    }
+
+    if (project.ownerId !== identity.subject) {
+      throw new Error("Unauthorized: you do not have access to this project.");
+    }
+
+    await ctx.db.patch(args.id, {
+      settings: args.settings,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 export const deleteProject = mutation({
   args: {
     id: v.id("projects"),
